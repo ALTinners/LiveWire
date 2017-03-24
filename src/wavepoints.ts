@@ -55,6 +55,8 @@ export class Wavepoint {
 	mask: Phaser.Graphics;
 	body: Phaser.Physics.P2.Body;
 
+	idealX: number;
+
 	index: number;
 
 	lastShot: number;
@@ -63,84 +65,65 @@ export class Wavepoint {
 
 	isDead = false;
 
+	polygonOptions = {
+		skipSimpleCheck: true,
+	};
+
 	constructor(public wireCollisionGroup: Phaser.Physics.P2.CollisionGroup, public ballCollisionGroup: Phaser.Physics.P2.CollisionGroup, public state: Phaser.State, public i: number) {
 
 		this.index = i;
-
-		this.powerUp = Math.floor(Math.random() * PowerUp.Count);
-
-		// pad.deadZone = 0;
 
 		let yMidpoint = Globals.WireStartHeight;
 		let divWidth = Globals.ScreenWidth/Globals.NumberOfParticles;
 		let xMidpoint = divWidth * this.index + divWidth/2;
 
-		// this.sprite = state.add.sprite(xMidpoint, yMidpoint);
-		// this.sprite = state.add.graphics(xMidpoint, yMidpoint);
-		// this.sprite.lineStyle(1, 0xFFFFFF, 1);
-		// this.sprite.beginFill(0xffffff, 0.3);
-		// this.sprite.drawCircle( 0, 0, Globals.ParticleRadius*2);
+		this.idealX = xMidpoint;
 
 		this.sprite = state.add.sprite(xMidpoint, yMidpoint, 'waveform');
-		// this.sprite.scale.x = 0.05;
-		// this.sprite.scale.y = 0.05;
-		// this.sprite.tint = 0xFF00FF;
 
-
-
-		// this.sprite.mask = this.mask;
-
-		// this.pad.game.physics.arcade.enable(this.sprite);
-		state.physics.p2.enable(this.sprite/*, Globals.DebugRender*/);
+		state.physics.p2.enable(this.sprite, Globals.DebugRender);
 		this.body = <Phaser.Physics.P2.Body>this.sprite.body;
-		// this.body = <Phaser.Physics.P2.Body>this.sprite.body;
 		this.body.setCircle(Globals.ParticleRadius, 0, 0);
-		this.color = colors[0]; //hack
+		// this.body.setRectangle(Globals.ParticleRadius*2, 20, Globals.ParticleRadius, 10);
+		this.body.addPolygon(this.polygonOptions, [ [0, 0], [Globals.ParticleRadius*2, 0], [Globals.ParticleRadius*2, Globals.ParticleRadius*2], [0, Globals.ParticleRadius*2]  ]);
 		this.body.collideWorldBounds = true;
 		this.body.data.gravityScale = 0;
 		this.body.mass = Globals.WaveMass;
+		this.body.angularVelocity = 0;
+		this.body.static = true;
 
 		this.body.setCollisionGroup(wireCollisionGroup);
 		this.body.collides([state.physics.p2.boundsCollisionGroup, this.ballCollisionGroup] );
-
-		// collisionGroup.add(this.sprite);
-
-		// this.body.rotation  = Math.PI/2;
-		// this.body.angle  = Math.PI/2;
-
-		// pad.onDownCallback = (inputIndex: number) => {
-		// 	//right bumper
-		// 	if (inputIndex == 5) {
-		// 	}
-
-		// 	if (inputIndex == 9) { //start
-		// 		this.pad.game.state.start('game');
-		// 	}
-
-		// 	if (inputIndex == Phaser.Gamepad.XBOX360_RIGHT_TRIGGER) {
-		// 		this.addExpandingCircle();
-		// 	}
-		// }
-
-		// let circle = add.graphics(0, 0);
-		// this.sprite.addChild(circle);
-
-		// circle.lineStyle(1, this.color, 0.5);
-		// circle.beginFill(0xffffff, 0.3);
-		// circle.drawCircle(0, 0, Globals.SlowDownRange * 2);
 	}
 
-	update() {
+	update(playerEnergy: Array<number>) {
 		this.energies = this.newEnergies;
 
 		this.newEnergies = [];
+		let playerIndex = (this.index == 0 ? 0 : 1);
 
 		let speed = Globals.PlayerSpeed;
 		for (let anEnergy of this.energies) {
 			this.energy += anEnergy.strength;
 		}
 
-		this.body.applyForce( [0, this.energy * 4 * Globals.WaveMass], 0, 0 );
+		if (this.energyToAdd != null) {
+			playerEnergy[playerIndex] -= Globals.PlayerEnergyUseRate;			
+		} 
+
+		if (this.index == 0 && playerIndex == 0 || this.index == (Globals.NumberOfParticles - 1) && playerIndex == 1) {
+			if (playerEnergy[playerIndex] < 0) {
+				playerEnergy[playerIndex] = 0;
+			} else if (playerEnergy[playerIndex] < 20) {
+				playerEnergy[playerIndex] += Globals.PlayerEnergyAddRate;
+			} 
+		}
+
+			
+		this.body.applyForce( [0, this.energy * Globals.WaveStrengthMod * Globals.WaveMass], 0, 0 );
+
+		//Test for static physics
+		this.body.velocity.y = this.energy * Globals.WaveStrengthMod * -1 * 0.3;
 
 		this.energy *= Globals.EnergyDecay;
 
@@ -148,28 +131,28 @@ export class Wavepoint {
 
 		this.body.data.velocity[0] = 0;
 
-		if( Math.abs(this.body.y - yMidpoint) > 25) {
-			// this.body.applyImpulse( [0, (this.body.y - yMidpoint) * 1.0], 0, 0 );
-			this.body.velocity.y = (this.body.velocity.y - (this.body.y - yMidpoint) * 12);
-			this.body.applyDamping(7);
-
-			// this.body.velocity.set(0, this.body.velocity.y - (this.body.position.y - yMidpoint) * 2.5);
+		let lowCutoff = 10;
+		if( Math.abs(this.body.y - yMidpoint) > lowCutoff) {
+			// this.body.velocity.y = (this.body.velocity.y - (this.body.y - yMidpoint) * 12.5);	//Dynamic
+			// this.body.applyDamping(Globals.WaveDampSlow);		//Dynamic
+			this.body.velocity.y = (this.body.velocity.y - (this.body.y - yMidpoint) * 8);	//Static
 		} 
-		if( Math.abs(this.body.y - yMidpoint) > 10 && Math.abs(this.body.y - yMidpoint) < 25) {
-			// this.body.applyImpulse( [0, (this.body.y - yMidpoint) * 1.0], 0, 0 );
-			this.body.velocity.y = (this.body.velocity.y - (this.body.y - yMidpoint) * 20);
-			this.body.applyDamping(50);
-			// console.log(this.body.velocity.y);
-
-			// this.body.velocity.set(0, this.body.velocity.y - (this.body.position.y - yMidpoint) * 2.5);
+		if( Math.abs(this.body.y - yMidpoint) > 5 && Math.abs(this.body.y - yMidpoint) < lowCutoff) {
+			// this.body.velocity.y = (this.body.velocity.y - (this.body.y - yMidpoint) * 20);	//Dynamic
+			// this.body.applyDamping(Globals.WaveDampSettle);		//Dynamic
+			this.body.velocity.y = (this.body.velocity.y - (this.body.y - yMidpoint) * 20);	//Static
 		} 
 	}
 	
-	setDir(direction: Direction) {
+	setDir(direction: Direction, playerEnergy: Array<number>) {
 		let strength = Globals.InitialStrength; 
+
+		let playerIndex = (this.index == 0 ? 0 : 1);
+
 		if (direction == Direction.Down) {
 			strength *= -1;
 		}
+
 		let propogate = Direction.Left;
 		if (this.index == 0) {
 			propogate = Direction.Right;

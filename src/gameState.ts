@@ -10,6 +10,9 @@ let globalScore = [
 	0,0
 ];
 
+var playerEnergy = [20, 20];
+
+
 
 export default class GameState extends Phaser.State {
 
@@ -31,6 +34,8 @@ export default class GameState extends Phaser.State {
 	ballEmitter: Phaser.Particles.Arcade.Emitter;
 	currentBallParticles: string;
 
+	goals = new Array<Phaser.Graphics>();
+
 	bg: Phaser.TileSprite;
 
 	gameIsEnded = false;
@@ -40,6 +45,9 @@ export default class GameState extends Phaser.State {
 	}
 
 	preload() {
+
+		this.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
+
 		this.players.length = 0;
 
 		this.scoreCooldowns = [0, 0];
@@ -68,6 +76,9 @@ export default class GameState extends Phaser.State {
 		this.load.image('particleRed', require('./assets/images/particle2.png'));
 		this.load.image('particleBlueBig', require('./assets/images/particleBlueBig.png'));
 		this.load.image('particleRedBig', require('./assets/images/particleRedBig.png'));
+
+		this.scale.startFullScreen(false);
+
 	}
 
 	create() {
@@ -75,42 +86,58 @@ export default class GameState extends Phaser.State {
 		// this.bg.tileScale.x=0.1;
 		// this.bg.tileScale.y=0.1;
 
-		// this.scoreTexts.push(this.add.text(Globals.ScreenWidth - 80, 10, '' + globalScore[1], { font: '100px Arial', fill: '#ffffff' }));	//PLayer 1
-		// this.scoreTexts.push(this.add.text(10, 10, '' + globalScore[0], { font: '100px Arial', fill: '#ffffff' }));	//Player 2
+		// this.scoreTexts.push(this.add.text(10, 10, '' + playerEnergy[0], { font: '100px Arial', fill: '#ffffff' }));	//Player 1
+		// this.scoreTexts.push(this.add.text(Globals.ScreenWidth - 80, 10, '' + playerEnergy[1], { font: '100px Arial', fill: '#ffffff' }));	//PLayer 2
 
-		let bar = this.add.graphics(0, 0);
-		bar.lineStyle(1, 0xFFFFFF, 1);
-		bar.beginFill(0xffffff, 0.3);
-		bar.drawRect(Globals.GoalSideOffset, Globals.GoalTopOffset, Globals.GoalWidth, Globals.GoalHeight);
-		this.physics.p2.enable(bar);
-		let barBody = <Phaser.Physics.P2.Body>bar.body;
+		this.add.text(10, 10, "Player 1: W & S", { font: '50px Arial', fill: '#ffffff' });
+		this.add.text(Globals.ScreenWidth - 480, 10, "Player 2: Up & Down", { font: '50px Arial', fill: '#ffffff' });
+		this.add.text(Globals.ScreenWidth - 1250, 60, "Get the ball on the opposite bumper", { font: '50px Arial', fill: '#ffffff' });
+
+		this.goals.push(this.add.graphics(0, 0));
+		this.goals[0].lineStyle(1, 0xFFFFFF, 1);
+		this.goals[0].beginFill(0xffffff, 0.3);
+		this.goals[0].drawRect(Globals.GoalSideOffset, Globals.GoalTopOffset, Globals.GoalWidth, Globals.GoalHeight);
+		this.physics.p2.enable(this.goals[0], Globals.DebugRender);
+		let barBody = <Phaser.Physics.P2.Body>this.goals[0].body;
 		barBody.setRectangle(Globals.GoalWidth, Globals.GoalHeight, Globals.GoalWidth/2, Globals.GoalTopOffset + Globals.GoalHeight/2);
 		barBody.static = true;
 		barBody.setCollisionGroup(this.goalCollisionGroup);
-		barBody.collides(this.ballCollisionGroup, () => { this.updateGlobalScore(0); /*this.scoreTexts[0].setText(globalScore[0].toString());*/ });
+		barBody.collides(this.ballCollisionGroup, () => { this.updateGlobalScore(0); });
 		
 
-		let bar2 = this.add.graphics(0, 0);
-		bar2.lineStyle(1, 0xFFFFFF, 1);
-		bar2.beginFill(0xffffff, 0.3);
-		bar2.drawRect( Globals.ScreenWidth - Globals.GoalSideOffset - Globals.GoalWidth, Globals.GoalTopOffset, Globals.GoalWidth, Globals.GoalHeight);
-		this.physics.p2.enable(bar2);
-		let barBody2 = <Phaser.Physics.P2.Body>bar2.body;
+		this.goals.push(this.add.graphics(0, 0));
+		this.goals[1].lineStyle(1, 0xFFFFFF, 1);
+		this.goals[1].beginFill(0xffffff, 0.3);
+		this.goals[1].drawRect( Globals.ScreenWidth - Globals.GoalSideOffset - Globals.GoalWidth, Globals.GoalTopOffset, Globals.GoalWidth, Globals.GoalHeight);
+		this.physics.p2.enable(this.goals[1], Globals.DebugRender);
+		let barBody2 = <Phaser.Physics.P2.Body>this.goals[1].body;
 		barBody2.setRectangle( Globals.GoalWidth, Globals.GoalHeight, (Globals.ScreenWidth - Globals.GoalSideOffset - Globals.GoalWidth) + Globals.GoalWidth/2, Globals.GoalTopOffset + Globals.GoalHeight/2);
 		barBody2.static = true;
 		barBody2.setCollisionGroup(this.goalCollisionGroup);
-		barBody2.collides(this.ballCollisionGroup, () => { this.updateGlobalScore(1); /*this.scoreTexts[1].setText(globalScore[1].toString());*/ });
+		barBody2.collides(this.ballCollisionGroup, () => { this.updateGlobalScore(1); });
 		
 		let topBar = this.add.graphics(0, 0);
 		topBar.lineStyle(1, 0xFFFFFF, 1);
 		topBar.beginFill(0xffffff, 0.3);
 		topBar.drawRect(0, 0, Globals.ScreenWidth, Globals.BorderTopOffset);
-		this.physics.p2.enable(topBar);
+		this.physics.p2.enable(topBar, Globals.DebugRender);
 		let topBarBody = <Phaser.Physics.P2.Body>topBar.body;
 		topBarBody.setRectangle(Globals.ScreenWidth, Globals.BorderTopOffset, Globals.ScreenWidth/2, Globals.BorderTopOffset/2);
 		topBarBody.static = true;
 		topBarBody.setCollisionGroup(this.goalCollisionGroup);
 		topBarBody.collides(this.ballCollisionGroup, () => { });
+
+		// //Debug bottom bar for ball physics
+		// let bottomBar = this.add.graphics(0, 0);
+		// bottomBar.lineStyle(1, 0xFFFFFF, 1);
+		// bottomBar.beginFill(0xffffff, 0.3);
+		// bottomBar.drawRect(0, Globals.WireStartHeight - 40, Globals.ScreenWidth, Globals.BorderTopOffset);
+		// this.physics.p2.enable(bottomBar, Globals.DebugRender);
+		// let bottomBarBody = <Phaser.Physics.P2.Body>bottomBar.body;
+		// bottomBarBody.setRectangle( Globals.ScreenWidth, Globals.BorderTopOffset, Globals.ScreenWidth/2, Globals.WireStartHeight - 20);
+		// bottomBarBody.static = true;
+		// bottomBarBody.setCollisionGroup(this.goalCollisionGroup);
+		// bottomBarBody.collides(this.ballCollisionGroup, () => { });
 
 
 		for (let i = 0; i<Globals.NumberOfParticles; i++) {
@@ -131,41 +158,52 @@ export default class GameState extends Phaser.State {
 		this.ballEmitter.setXSpeed(-1 * Globals.ParticleSpeed, Globals.ParticleSpeed);
 		this.ballEmitter.setYSpeed(-1 * Globals.ParticleSpeed, Globals.ParticleSpeed);
 		this.ballEmitter.setScale( 0.8,1.2, 0.8,1.2 );
-		// this.ballEmitter.gravity = -200;
 
-	// this.ballEmitter.makeParticles('particleBlue');
-    // 		this.ballEmitter.start(false, 1000, 30 /*, Infinity*/);
-
-		this.physics.p2.enable(this.ball);
+		this.physics.p2.enable(this.ball, Globals.DebugRender);
 		let ballBody = <Phaser.Physics.P2.Body>this.ball.body;
 		ballBody.setCircle(Globals.PlayerRadius, 0, 0);
 		ballBody.collideWorldBounds = true;
 		ballBody.data.gravityScale = 1;
-		ballBody.data.mass = 1;
+		ballBody.data.mass = 2;
+		ballBody.damping = 0.3;
 		ballBody.setCollisionGroup(this.ballCollisionGroup);
 		ballBody.collides([this.physics.p2.boundsCollisionGroup, this.wireCollisionGroup, this.goalCollisionGroup]);
 
 
 		var ballMaterial = this.physics.p2.createMaterial('ballMaterial', ballBody);
-		var ballMaterial = this.physics.p2.createMaterial('ballMaterial', ballBody);
 		var waveMaterial = this.physics.p2.createMaterial('waveMaterial');
+		for (let wavepoint of this.wavepoints) {
+			wavepoint.body.setMaterial(waveMaterial);
+		}
+		var goalMaterial = this.physics.p2.createMaterial('goalMaterial');
+		this.goals[0].body.setMaterial(goalMaterial);
+		this.goals[1].body.setMaterial(goalMaterial);
 		var worldEdgeMaterial = this.physics.p2.createMaterial('wallMaterial');
-		var waveContactMaterial = this.physics.p2.createContactMaterial(ballMaterial, waveMaterial);
-		var wallContactMaterial = this.physics.p2.createContactMaterial(ballMaterial, worldEdgeMaterial);
-		wallContactMaterial.friction = 6;
-		wallContactMaterial.restitution = 0.5;
 		this.physics.p2.setWorldMaterial(worldEdgeMaterial, true, true, true, true);
+
+		// ballBody.onBeginContact.add( (body) => console.log(body) );
+		ballBody.onEndContact.add( (arg) => console.log(arg) );
+
+		var waveContactMaterial = this.physics.p2.createContactMaterial(ballMaterial, waveMaterial);
+		waveContactMaterial.friction = 1;
+		waveContactMaterial.restitution = 0.3;
+		var goalContactMaterial = this.physics.p2.createContactMaterial(ballMaterial, goalMaterial);
+		goalContactMaterial.friction = 10;
+		goalContactMaterial.restitution = 1.5;
+		var wallContactMaterial = this.physics.p2.createContactMaterial(ballMaterial, worldEdgeMaterial);
+		wallContactMaterial.friction = 0;
+		wallContactMaterial.restitution = 0.2;
 
 		this.game.input.keyboard.onDownCallback = (inputObject: any) => {
 			if (!this.gameIsEnded) {
 				if (inputObject.keyCode == Phaser.Keyboard.W) {
-					this.wavepoints[0].setDir(Direction.Up);
+					this.wavepoints[0].setDir(Direction.Up, playerEnergy);
 				} else if (inputObject.keyCode == Phaser.Keyboard.S) {
-					this.wavepoints[0].setDir(Direction.Down);
+					this.wavepoints[0].setDir(Direction.Down, playerEnergy);
 				} else if (inputObject.keyCode == Phaser.Keyboard.UP) {
-					this.wavepoints[Globals.NumberOfParticles-1].setDir(Direction.Up);
+					this.wavepoints[Globals.NumberOfParticles-1].setDir(Direction.Up, playerEnergy);
 				} else if (inputObject.keyCode == Phaser.Keyboard.DOWN) {
-					this.wavepoints[Globals.NumberOfParticles-1].setDir(Direction.Down);
+					this.wavepoints[Globals.NumberOfParticles-1].setDir(Direction.Down, playerEnergy);
 				}
 			} else {
 				if (inputObject.keyCode == Phaser.Keyboard.R) {
@@ -190,8 +228,10 @@ export default class GameState extends Phaser.State {
 	}
 
 	update() {
-		this.wavepoints[0].addExtraEnergy();
-		this.wavepoints[Globals.NumberOfParticles-1].addExtraEnergy();
+		if (playerEnergy[0] > 1)
+			this.wavepoints[0].addExtraEnergy();
+		if (playerEnergy[1] > 1)
+			this.wavepoints[Globals.NumberOfParticles-1].addExtraEnergy();
 
 		for (let index = 0; index < this.wavepoints.length; ++index) {
 			let leftCount = 0;
@@ -228,7 +268,7 @@ export default class GameState extends Phaser.State {
 		}
 		
 		for (let wavepoint of this.wavepoints) {
-			wavepoint.update();
+			wavepoint.update(playerEnergy);
 		}
 
 		for (let i=0; i<globalScore.length; i++) {
@@ -248,7 +288,6 @@ export default class GameState extends Phaser.State {
 		if (this.ball.position.y >= Globals.ScreenHeight - Globals.PlayerRadius/2) {
 			this.ball.body.x = Globals.BallStartPosX;
 			this.ball.body.y = Globals.BallStartPosY;
-			console.log("Reset")
 		}
 
 		for (let index = 0; index < 2; index++) {
@@ -261,17 +300,11 @@ export default class GameState extends Phaser.State {
 		}
 
 
-		var px = this.ball.body.velocity.x;
-		var py = this.ball.body.velocity.y;
-
-		px *= -1;
-		py *= -1;
-
-		// emitter.minParticleSpeed.set(px, py);
-		// emitter.maxParticleSpeed.set(px, py);
-
 		this.ballEmitter.emitX = this.ball.x;
 		this.ballEmitter.emitY = this.ball.y;
+
+		// this.scoreTexts[0].setText(playerEnergy[0].toString());
+		// this.scoreTexts[1].setText(playerEnergy[1].toString());
 	}
 
 	updateGlobalScore(index: number) {
@@ -279,8 +312,9 @@ export default class GameState extends Phaser.State {
 
 		if (this.scoreCooldowns[index] == 0) {
 			globalScore[index] += 20;
-			//this.scoreTexts[index].setText(globalScore[index].toString());
-			this.scoreCooldowns[index] = 2;
+			this.scoreCooldowns[index] = 4;
+
+			
 
 			this.recolourBall();
 
@@ -401,8 +435,15 @@ export default class GameState extends Phaser.State {
 	resetState() {
 		this.gameIsEnded = false;
 		globalScore = [0, 0];
-		this.ball.x = Globals.ScreenWidth/2;
-		this.ball.y = 90;
+
+		this.endText.destroy();
+
+		this.ball.body.x = Globals.BallStartPosX;
+		this.ball.body.y = Globals.BallStartPosY;
+		this.ball.body.velocity.x = 0;
+		this.ball.body.velocity.y = 0;
+		this.ball.body.velocity.mx = 0;
+		this.ball.body.velocity.my = 0;
 		this.ball.alpha = 1;
 		this.ball.scale.x = 0.175;
 		this.ball.scale.y = 0.175;

@@ -6,6 +6,7 @@ import * as Globals from './globals';
 
 import GameState from './gameState';
 import LoadingState from './loadingState';
+import { BigBall } from './ball';
 
 new GameState();
 new LoadingState();
